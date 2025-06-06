@@ -1,19 +1,33 @@
 #!/usr/bin/env zsh
 
-# Volume (amixer)
-VOLUME=$(amixer get Master | grep -o "[0-9]*%" | head -1)
+# Network check (no ping)
+NET_STATUS="Disconnected"
+IFACE=$(ip route | awk '/^default/ {print $5}')
 
-# IP address
-IP=$(ip route get 1 | awk '{print $7}')
+if [[ -n "$IFACE" ]]; then
+  HAS_IP=$(ip a show "$IFACE" | grep -q "inet " && echo yes)
 
-# VPN status (interface tun0 or wg0)
-VPN_IF=$(ip a | grep -E "tun0|wg0" | awk '{print $2}' | sed 's/://')
-VPN_STATUS="VPN: off"
-if [ -n "$VPN_IF" ]; then
-  VPN_STATUS="VPN: on"
+  if [[ "$HAS_IP" == "yes" ]]; then
+    WIFI_IFACES=($(iw dev | awk '$1=="Interface"{print $2}'))
+    if [[ " ${WIFI_IFACES[@]} " =~ " $IFACE " ]]; then
+      SSID=$(iw dev "$IFACE" link | grep SSID | cut -d ' ' -f2-)
+      [[ -z "$SSID" ]] && SSID="unknown"
+      NET_STATUS="WiFi: $SSID"
+    else
+      NET_STATUS="Eth: $IFACE"
+    fi
+  fi
 fi
 
-# Battery (if available)
+# VPN status
+VPN_IF=$(ip a | grep -E "tun0|wg0" | awk '{print $2}' | sed 's/://')
+VPN_STATUS="VPN:OFF"
+[[ -n "$VPN_IF" ]] && VPN_STATUS="VPN:ON"
+
+# Volume
+VOLUME=$(amixer get Master | grep -o "[0-9]*%" | head -1)
+
+# Battery
 if command -v upower &>/dev/null; then
   BATTERY=$(upower -i $(upower -e | grep BAT) | grep -E "percentage" | awk '{print $2}')
 elif command -v acpi &>/dev/null; then
@@ -25,5 +39,5 @@ fi
 # Date + time
 DATETIME=$(date "+%A, %d %B %Y %H:%M:%S")
 
-# Output everything
-echo "$VOLUME | IP: $IP | $VPN_STATUS | $BATTERY | $DATETIME"
+# Output
+echo "$NET_STATUS | $VPN_STATUS | V:$VOLUME | B:$BATTERY | $DATETIME"
