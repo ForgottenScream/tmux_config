@@ -28,13 +28,7 @@ VPN_STATUS="VPN:OFF"
 VOLUME=$(amixer get Master | grep -o "[0-9]*%" | head -1)
 
 # Battery
-if command -v upower &>/dev/null; then
-  BATTERY=$(upower -i $(upower -e | grep BAT) | grep -E "percentage" | awk '{print $2}')
-elif command -v acpi &>/dev/null; then
-  BATTERY=$(acpi | cut -d "," -f 2 | tr -d " ")
-else
-  BATTERY="N/A"
-fi
+BATTERY=$(awk -F= '/^POWER_SUPPLY_CAPACITY=/ {print $2 "%"}' /sys/class/power_supply/BAT0/uevent)
 
 # Date + time
 DATETIME=$(date "+%A, %d %B %Y %H:%M:%S")
